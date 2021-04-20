@@ -17,7 +17,7 @@ It will be reworked once I'm able to test with a Ziggo next.
 ## Installation
 The driver requires no additional packages, it can be installed through the metadrivers APP on NEEO-remote, and can be found under Library as an External driver. 
 
-The work on thios driver was very inspired BY Gilles vd Hoven's Horizonbox-driver for NEEO.
+The work on this driver was very inspired by Gilles vd Hoven's Horizonbox-driver for NEEO.
  ## Errors, Bugs, shortcomings #
 1) Shortcoming: no discovery of boxes, IP-address needs to be provided manually
 2) The handshaking with the Horizonbox works fine taking in practice 2 stages of authentication, though other examples of this driver (Gilles van der Hoven) have defined 4 stages. 
