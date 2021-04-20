@@ -13,8 +13,11 @@ Currently, the device drivers in this package support the Horizonbox.
 However, a version that suports the Ziggo Next is available, but is too complex at this moment (in my opinion).
 It will be reworked once I'm able to test with a Ziggo next.
 
+
 # Installation
 The driver requires no additional packages, it can be installed through the metadrivers APP on NEEO-remote, and can be found under Library as an External driver. 
+For reference, this repository contains both the files for Horizonbox and Next-box, though formally, I only support the Hoizonbox-files at this moment.
+
 
 The work on thios driver was very inspired BY Gilles vd Hoven's Horizonbox-driver for NEEO.
  # Errors, Bugs, shortcomings #
