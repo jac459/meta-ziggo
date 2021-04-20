@@ -1,0 +1,413 @@
+{ "name":"Ziggo Horizonbox XL",
+   "manufacturer":"Ton",
+   "type":"MEDIAPLAYER",
+   "version":1,
+   "listeners" : {
+      "Ziggo_data" : 
+      {"type":"netSocket", "command":{"errorhandling":"yes","connection":"$ZiggoIP","port":5900, "message": "data"}, "queryresult" : "",  
+         "evalwrite" : [ 
+            {"variable" : "Type",     "value" : "data"},
+            {"variable" : "BoxChallenge",     "value" : "DYNAMIK \"$Result\""},
+            {"variable" : "data",     "value" : "$StateMachine"}
+         ],
+         "evaldo":[
+               {"test":"DYNAMIK $StateMachine==0","then":"__SM#0","or":""},
+               {"test":"DYNAMIK $StateMachine==1","then":"__SM#1","or":""},
+               {"test":"DYNAMIK $StateMachine==2","then":"__SM#2","or":""},
+               {"test":"DYNAMIK $StateMachine==3","then":"__SM#3","or":""},
+               {"test":"DYNAMIK $StateMachine==4","then":"__SM#4","or":""}
+               ]
+      },
+      "Ziggo_close" : 
+      {"type":"netSocket", "command":{"errorhandling":"yes","connection":"$ZiggoIP","port":5900, "message": "close"}, "queryresult" : "",  
+            "evalwrite" : [ 
+               {"variable" : "Type",     "value" : "close"},
+               {"variable" : "Message",     "value" : "DYNAMIK \"$Result\".trimEnd()"},
+               {"variable" : "StateMachine",     "value" : "$DISCONNECTED"}
+            ]
+      },
+      "Ziggo_error" : 
+      {"type":"netSocket", "command":{"errorhandling":"yes","connection":"$ZiggoIP","port":5900, "message": "error"}, "queryresult" : "",  
+            "evalwrite" : [ 
+               {"variable" : "Type",    "value" : "error"},
+               {"variable" : "Message", "value" : "DYNAMIK \"$Result\".trimEnd()"},
+               {"variable" : "data",    "value" : "$StateMachine"}
+            ],
+            "evaldo":[
+               {"test":"DYNAMIK \"$Result\"==\"Error: This socket has been ended by the other party\"","then":"__SM#RESET","or":""},
+                  {"test":"DYNAMIK $StateMachine==1","then":"__SM#1","or":""},
+                  {"test":"DYNAMIK $StateMachine==2","then":"__SM#2","or":""},
+                  {"test":"DYNAMIK $StateMachine==3","then":"__SM#3","or":""},
+                  {"test":"DYNAMIK $StateMachine==4","then":"__SM#4","or":""}
+                  ]
+      }
+
+   },
+   "variables":{
+      "ButtonDown": "",
+      "ButtonUp": "",
+      "Topic": "",
+      "Message": "",
+      "Type":"", 
+      "StateMachine":0,
+      "DISCONNECTED":0,
+      "CONNECTING":1,
+      "AUTHENTICATING": 2,
+      "AUTHENTICATED": 3,
+      "CONNECTED": 4,
+      "ZiggoIP":"192.168.0.58",
+      "data":"", 
+      "BoxChallenge":"",
+      "SendCmd":"", 
+      "DisplayLine":"", 
+      "PfxDown":"040100000000",
+      "PfxUp":"040000000000",
+      "btnDown":"",
+      "btnUp":"",
+      "Hostname":""
+   },
+   "labels": {
+   },   
+   "sliders":{
+   },
+   "buttons":{
+      "__CONNRESET":{"label": "", "type":"static", "command":".",
+            "evalwrite":[{"variable":"DisplayLine","value":"Connection reset by Box"}],
+            "evaldo":[{"test":true,"then":"__SM#RESET","or":""}]
+      },
+      "__SM#RESET": {"label": "", "type":"static", "command":".",
+      "evalwrite":[
+         {"variable" : "StateMachine","value" : "$DISCONNECTED"}
+         ]
+      },
+      "__SM#0": {"label": "", 
+         "type":"static", "command":".",
+            "evaldo":[
+            {"test":"DYNAMIK \"$BoxChallenge\".substring(0,3) == \"RFB\"","then":"__SM#0_OK","or":""}
+         ]
+      },
+      "__SM#0_OK": {"label": "", 
+         "evalwrite" : [ 
+            {"variable" : "StateMachine","value" : "$CONNECTING"},
+            {"variable":"DisplayLine","value":"Connecting"}
+            ],
+         "type":"netSocket",
+         "command":"{\"connection\": \"$ZiggoIP\",\"port\":5900, \"message\":\"$BoxChallenge\",\"format\":\"ASCII\"}"
+      },
+      "__SM#1": {"label": "", "type":"static", "command":".",
+         "evaldo":[
+            {"test":"DYNAMIK ($Message==Buffer.from(\"00010001\", \"hex\")","then":"__SM#1_OK","or":""}
+         ]
+      },
+      "__SM#1_OK": {"label": "", 
+         "evalwrite" : [ 
+            {"variable" : "StateMachine","value" : "$AUTHENTICATING"},
+            {"variable":"DisplayLine","value":"Authenticating"}
+            ],
+         "type":"netSocket",
+         "command":"{\"connection\": \"$ZiggoIP\",\"port\":5900, \"message\":\"DYNAMIK Base64.encode(Buffer.from(\"01\", \"hex\")),\"format\":\"B64\"}"
+      },
+      "__SM#2": {"label": "", "type":"static", "command":".",
+         "evaldo":[
+         {"test":"DYNAMIK ($Message==Buffer.from(\"0000000000000000\", \"hex\")","then":"__SM#2_OK","or":""}
+         ]
+      },
+      "__SM#2_OK": {"label": "", 
+         "evalwrite" : [ 
+         {"variable" : "StateMachine","value" : "$AUTHENTICATED"},
+         {"variable":"DisplayLine","value":"Authenticated"}
+
+         ],
+         "type":"netSocket",
+         "command":"{\"connection\": \"$ZiggoIP\",\"port\":5900, \"message\":\"$Message\"}"
+      },
+      "__SM#3": {"label": "", "type":"static", "command":".",
+      "evaldo":[
+         {"test":"DYNAMIK ($Message==Buffer.from(\"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\", \"hex\")","then":"__SM#2_OK","or":""}
+         ]
+      },
+      "__SM#4": {"label": "", "type":"static", "command":".",
+      "evalwrite" : [ 
+         {"variable" : "data","value" : "$CONNECTED"},
+         {"variable":"DisplayLine","value":"Connected"}
+         ]
+      },
+      "__SendCommand":  
+      {"label":"","type":"static","command":"", 
+         "evalwrite" : [{"variable" : "btnDown","value" : "$PfxDown$SendCmd"},
+                        {"variable" : "btnUp",  "value" : "$PfxUp$SendCmd"}],
+         "evaldo":[{"test":true,"then":"__SendbtnDown","or":""}]
+      },
+
+      "__SendbtnDown": 
+         {"label":"",    
+         "type":"netSocket",
+         "command":"{\"connection\": \"$ZiggoIP\",\"port\":5900, \"message\":\"$btnDown\",\"format\":\"HEX2BIN\"}", 
+         "evaldo":[{"test":true,"then":"__DELAY","or":""}]
+      },
+      "__DELAY":  
+      {"label":"",    
+         "type":"cli",
+         "command":"sleep 0.2",
+         "evaldo":[{"test":true,"then":"__SendbtnUp","or":""}]
+      },
+      "__SendbtnUp":  
+      {"label":"",    
+         "type":"netSocket",
+         "command":"{\"connection\": \"$ZiggoIP\",\"port\":5900, \"message\":\"$btnUp\",\"format\":\"HEX2BIN\"}"
+      },
+      "POWER ON":  
+      {"label":"",    
+         "type":"static",
+         "evaldo":[{"test":true,"then":"__xNITIALISE","or":""}]
+      },
+      "POWER OFF":  
+      {"label":"",    
+         "type":"static",
+         "evaldo":[{"test":true,"then":"__CLEANUP","or":""}]
+      },
+      "DIGIT 0":  
+      {"label":"",    
+         "type":"static","command":"", 
+         "evalwrite" : [{"variable" : "SendCmd","value" : "E300"}],      
+         "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+      },
+      "DIGIT 1":  
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E301"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },
+      "DIGIT 2":  
+      {"label":"",    
+         "type":"static","command":"", 
+         "evalwrite" : [{"variable" : "SendCmd","value" : "E302"}],      
+         "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+      },
+      "DIGIT 3":  
+        {"label":"",    
+         "type":"static","command":"", 
+         "evalwrite" : [{"variable" : "SendCmd","value" : "E303"}],      
+         "evaldo":[{"test":true,"then":"__SendCommand","or":""}]      },
+      "DIGIT 4":  
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E304"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+           },
+        "DIGIT 5":  
+        {"label":"",    
+         "type":"static","command":"", 
+         "evalwrite" : [{"variable" : "SendCmd","value" : "E305"}],      
+         "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+      },
+        "DIGIT 6":  
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E306"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+           },
+      "DIGIT 7":  
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E307"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },
+      "DIGIT 8":  
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E308"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },
+     "DIGIT 9":  
+      {"label":"",    
+         "type":"static","command":"", 
+         "evalwrite" : [{"variable" : "SendCmd","value" : "E309"}],      
+         "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+      },
+      "POWER TOGGLE": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E000"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },
+      "MENU": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E00A"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },
+      "BACK": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E002"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },
+      "CURSOR_UP": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E100"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },         
+      "CURSOR_DOWN": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E101"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         }, 
+      "CURSOR_LEFT": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E102"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },                           
+      "CURSOR_RIGHT": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E103"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },                           
+      "CURSOR_ENTER": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E001"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },  
+      "CHANNEL_UP": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E006"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },           
+      "CHANNEL_DOWN": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E007"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },
+      "PLAY": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E400"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },
+      "PAUSE": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E400"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },
+      "STOP": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E402"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },
+      "FORWARD": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E405"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },
+      "REVERSE": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E407"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },
+      "MY_RECORDINGS": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "EF29"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },   
+      "RECORD": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E403"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },   
+      "LIVE": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "EF2A"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },  
+      "VOLUME_UP": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E003"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },      
+      "VOLUME_DOWN": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E004"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },      
+      "MUTE_TOGGLE": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E005"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },      
+      "GUIDE": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E00B"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },      
+      "ONDEMAND": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "EF28"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },      
+      "HELP": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E009"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },      
+      "TEXT": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E00E"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },      
+      "FUNCTION_RED": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E200"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },      
+      "FUNCTION_GREEN": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E201"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },      
+      "FUNCTION_YELLOW": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E202"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         },          
+      "FUNCTION_BLUE": 
+         {"label":"",    
+            "type":"static","command":"", 
+            "evalwrite" : [{"variable" : "SendCmd","value" : "E203"}],      
+            "evaldo":[{"test":true,"then":"__SendCommand","or":""}]
+         }, 
+      "RESET": 
+         {"label":"",    
+            "type":"netSocket",
+            "command":"{\"connection\": \"$ZiggoIP\",\"port\":5900, \"message\":\"RESETDRIVER\"}"
+         }
+      }
+}
+
+
+ 
+
+ 
